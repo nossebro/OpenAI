@@ -38,7 +38,7 @@
 	},
 	"ChatBotCooldown": {
 		"type": "numberbox",
-		"value": 1,
+		"value": 3,
 		"label": "Cooldown",
 		"tooltip": "Number of second to cooldown before accepting new message."
 	},
@@ -71,7 +71,7 @@
         "min": 1,
         "max": 4000,
         "ticks": 1,
-        "value": 256,
+        "value": 90,
 		"label": "Maximum length",
 		"tooltip": "The maximum number of tokens to generate. Requests can use up to 2048 or 4000 token shared between prompt and completion. The exact limit varies by model. (One token is roughly 4 characters for normal English text)",
 		"group": "Open AI"

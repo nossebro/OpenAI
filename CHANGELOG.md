@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4 - Unicode
+
+* Fix encoding and logging
+
 ## 0.0.3 - Moderation
 
 * Added moderation check

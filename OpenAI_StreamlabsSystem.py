@@ -7,7 +7,6 @@ import re
 import os
 import codecs
 import json
-import urllib
 
 # ---------------------------------------
 #   [Required] Script Information
@@ -15,7 +14,7 @@ import urllib
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.3"
+Version = "0.0.4"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -122,14 +121,17 @@ def OpenAIAPIPostRequest(url, header=dict(), body=dict()):
     Logger.debug(
         "Parent.PostRequest({}, {}, {}, {}".format(url, header, body, True))
     try:
-        result = json.loads(Parent.PostRequest(url, header, body, True))
-        Logger.debug(json.dumps(result, indent=4))
-        if "status" in result and result["status"] == 200:
-            return result
-        elif "error" in result:
-            Logger.error(result["error"])
+        request = Parent.PostRequest(url, header, body, True)
+        response = json.loads(request)
+        Logger.debug(response["status"])
+        if "status" in response and response["status"] == 200:
+            data = json.loads(response["response"])
+            Logger.debug(data)
+            return data
+        elif "error" in response:
+            Logger.error(response["error"])
         else:
-            Logger.error("Unknown error: {}".json.dumps(result, indent=4))
+            Logger.error("Unknown error: {}".json.dumps(response, indent=4))
     except Exception as e:
         Logger.error(e)
 
@@ -146,13 +148,9 @@ def OpenAIGetResponse(prompt, user):
         "presence_penalty": ScriptSettings.OpenAIPresencePenalty,
         "user": user
     }
-    Logger.debug(json.dumps(Body, indent=4))
     result = OpenAIAPIPostRequest(
         "https://api.openai.com/v1/completions", body=Body)
-    if result:
-        response = json.loads(result["response"])
-        Logger.debug(json.dumps(response, indent=4))
-        return response
+    return result
 
 
 def OpenAIGetModeration(prompt):
@@ -160,13 +158,9 @@ def OpenAIGetModeration(prompt):
     Body = {
         "input": prompt
     }
-    Logger.debug(json.dumps(Body, indent=4))
     result = OpenAIAPIPostRequest(
         "https://api.openai.com/v1/moderations", body=Body)
-    if result:
-        response = json.loads(result["response"])
-        Logger.debug(json.dumps(response, indent=4))
-        return response
+    return result
 
 
 # ---------------------------------------
@@ -221,10 +215,8 @@ def Execute(data):
             Level = 1
         Name = data.UserName
         if not ScriptSettings.Command and data.GetParam(0) != "@{0}".format(ScriptSettings.BotName):
-            #            Logger.debug("{0}: Message not addressed to bot: {1}".format(ScriptSettings.BotName, data.Message))
             return
         if ScriptSettings.Command and data.GetParam(0) != "!{0}".format(ScriptSettings.Command):
-            #            Logger.debug("{0}: Message command not for bot: {1}".format(ScriptSettings.BotName, data.Message))
             return
         if Parent.IsOnCooldown(ScriptName, "ChatBot"):
             Logger.debug("{0}: Chatbot is on cooldown".format(
@@ -239,13 +231,13 @@ def Execute(data):
                          data.Message, flags=re.IGNORECASE).strip()
         if Message != "":
             Logger.debug("Send to AI from {0}: '{1}'".format(Name, Message))
-            Mod = OpenAIGetModeration(urllib.quote_plus(Message, ""))
+            Mod = OpenAIGetModeration(Message.decode("unicode-escape"))
             if Mod and "results" in Mod:
                 if Mod["results"][0]["flagged"]:
                     Logger.debug("{0}: User {1} send a flagged message: {2}".format(
                         ScriptName.BotName, Name, Message))
                     return
-            Bot = OpenAIGetResponse(urllib.quote_plus(Message, ""), Name)
+            Bot = OpenAIGetResponse(Message.decode("unicode-escape"), Name.decode("unicode-escape"))
             if Bot and "choices" in Bot:
                 Parent.SendStreamMessage(
                     "@{0} {1}".format(Name, Bot["choices"][0]["text"].replace("\n", " ").strip()))
