@@ -15,7 +15,7 @@ import urllib
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.2"
+Version = "0.0.3"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -134,7 +134,7 @@ def OpenAIAPIPostRequest(url, header=dict(), body=dict()):
         Logger.error(e)
 
 
-def OpenAIGetResponse(prompt):
+def OpenAIGetResponse(prompt, user):
     global ScriptSettings
     Body = {
         "model": ScriptSettings.OpenAIModel,
@@ -143,10 +143,26 @@ def OpenAIGetResponse(prompt):
         "max_tokens": int(ScriptSettings.OpenAIMaxToken),
         "top_p": ScriptSettings.OpenAITopP,
         "frequency_penalty": ScriptSettings.OpenAIFrequencyPenalty,
-        "presence_penalty": ScriptSettings.OpenAIPresencePenalty
+        "presence_penalty": ScriptSettings.OpenAIPresencePenalty,
+        "user": user
     }
     Logger.debug(json.dumps(Body, indent=4))
-    result = OpenAIAPIPostRequest("https://api.openai.com/v1/completions", body=Body)
+    result = OpenAIAPIPostRequest(
+        "https://api.openai.com/v1/completions", body=Body)
+    if result:
+        response = json.loads(result["response"])
+        Logger.debug(json.dumps(response, indent=4))
+        return response
+
+
+def OpenAIGetModeration(prompt):
+    global ScriptSettings
+    Body = {
+        "input": prompt
+    }
+    Logger.debug(json.dumps(Body, indent=4))
+    result = OpenAIAPIPostRequest(
+        "https://api.openai.com/v1/moderations", body=Body)
     if result:
         response = json.loads(result["response"])
         Logger.debug(json.dumps(response, indent=4))
@@ -205,10 +221,10 @@ def Execute(data):
             Level = 1
         Name = data.UserName
         if not ScriptSettings.Command and data.GetParam(0) != "@{0}".format(ScriptSettings.BotName):
-#            Logger.debug("{0}: Message not addressed to bot: {1}".format(ScriptSettings.BotName, data.Message))
+            #            Logger.debug("{0}: Message not addressed to bot: {1}".format(ScriptSettings.BotName, data.Message))
             return
         if ScriptSettings.Command and data.GetParam(0) != "!{0}".format(ScriptSettings.Command):
-#            Logger.debug("{0}: Message command not for bot: {1}".format(ScriptSettings.BotName, data.Message))
+            #            Logger.debug("{0}: Message command not for bot: {1}".format(ScriptSettings.BotName, data.Message))
             return
         if Parent.IsOnCooldown(ScriptName, "ChatBot"):
             Logger.debug("{0}: Chatbot is on cooldown".format(
@@ -219,15 +235,22 @@ def Execute(data):
                 ScriptSettings.BotName, Name))
             return
 
-        Message = re.sub(r"^@" + ScriptSettings.BotName, "",
+        Message = re.sub(r"^@" + ScriptSettings.BotName + r"|^!" + ScriptSettings.Command + " ", "",
                          data.Message, flags=re.IGNORECASE).strip()
         if Message != "":
             Logger.debug("Send to AI from {0}: '{1}'".format(Name, Message))
-            Bot = OpenAIGetResponse(urllib.quote_plus(Message, ""))
+            Mod = OpenAIGetModeration(urllib.quote_plus(Message, ""))
+            if Mod and "results" in Mod:
+                if Mod["results"][0]["flagged"]:
+                    Logger.debug("{0}: User {1} send a flagged message: {2}".format(
+                        ScriptName.BotName, Name, Message))
+                    return
+            Bot = OpenAIGetResponse(urllib.quote_plus(Message, ""), Name)
             if Bot and "choices" in Bot:
                 Parent.SendStreamMessage(
-                    "@{0} {1}".format(Name, Bot["choices"][0]["text"].strip()))
-                Parent.AddCooldown(ScriptName, "ChatBot", ScriptSettings.ChatBotCooldown)
+                    "@{0} {1}".format(Name, Bot["choices"][0]["text"].replace("\n", " ").strip()))
+                Parent.AddCooldown(ScriptName, "ChatBot",
+                                   ScriptSettings.ChatBotCooldown)
             else:
                 Logger.debug("{0}: No response to message: {1}: {2}".format(
                     ScriptSettings.BotName, Message, json.dumps(Bot, indent=4)))
