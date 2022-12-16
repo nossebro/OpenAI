@@ -18,17 +18,29 @@
 		"label": "Bot Name",
 		"tooltip": "Insert your Twitch Bot display name."
 	},
+	"Command": {
+		"type": "textbox",
+		"value": "",
+		"label": "Command",
+		"tooltip": "Command to talk with the bot without \"!\". Leave blank to listen to @<BotName>."
+	},
 	"ChatBotLevel": {
 		"type": "numberbox",
 		"value": 0,
 		"label": "User Level needed to talk with the bot",
-		"tooltip": "0. User, 1. Regular, 2. Subscriber, 3. Mods, 4. Streamer"
+		"tooltip": "0. User, 1. Regular, 2. Subscriber, 3. Mods, 4. Streamer."
 	},
-	"ChatBotWhitelist": {
+	"ChatBotAllowlist": {
 		"type": "textbox",
 		"value": "nossebro",
-		"label": "Whitelist",
-		"tooltip": "List of Usernames separeted by \", \" who can talk with the bot"
+		"label": "Allowlist",
+		"tooltip": "List of Usernames separeted by \", \" who can talk with the bot."
+	},
+	"ChatBotCooldown": {
+		"type": "numberbox",
+		"value": 1,
+		"label": "Cooldown",
+		"tooltip": "Number of second to cooldown before accepting new message."
 	},
 	"OpenAIAPIToken": {
 		"type": "textbox",

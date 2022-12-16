@@ -7,6 +7,7 @@ import re
 import os
 import codecs
 import json
+import urllib
 
 # ---------------------------------------
 #   [Required] Script Information
@@ -14,7 +15,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.1"
+Version = "0.0.2"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -145,11 +146,11 @@ def OpenAIGetResponse(prompt):
         "presence_penalty": ScriptSettings.OpenAIPresencePenalty
     }
     Logger.debug(json.dumps(Body, indent=4))
-#    result = OpenAIAPIPostRequest("http://172.20.175.137:8000/v1/completions", body=Body)
     result = OpenAIAPIPostRequest("https://api.openai.com/v1/completions", body=Body)
-    response = json.loads(result["response"])
-    Logger.debug(json.dumps(response, indent=4))
-    return response
+    if result:
+        response = json.loads(result["response"])
+        Logger.debug(json.dumps(response, indent=4))
+        return response
 
 
 # ---------------------------------------
@@ -192,7 +193,6 @@ def ReloadSettings(jsondata):
 
 
 def Execute(data):
-#    if data.IsChatMessage() and data.IsFromTwitch() and data.Message.startswith("@{ScriptSettings.BotName}".format()):
     if data.IsChatMessage() and data.IsFromTwitch():
         Level = 0
         if Parent.HasPermission(data.User, "caster", ""):
@@ -204,22 +204,33 @@ def Execute(data):
         elif Parent.HasPermission(data.User, "regular", ""):
             Level = 1
         Name = data.UserName
-        Message = re.sub(r"^@" + ScriptSettings.BotName, "", data.Message, flags=re.IGNORECASE).strip()
-        Logger.debug("Send to AI from {0}: '{1}'".format(Name, Message))
-        if not Parent.IsOnCooldown(ScriptName, "ChatBot") and Message != "":
-            Logger.debug("Not on cooldown!")
-            Bot = OpenAIGetResponse(Message)
-            if "choices" in Bot:
-                Parent.SendStreamMessage("@{0} {1}".format(Name, Bot["choices"][0]["text"].strip()))
-                Parent.AddCooldown(ScriptName, "ChatBot", 1)
+        if not ScriptSettings.Command and data.GetParam(0) != "@{0}".format(ScriptSettings.BotName):
+#            Logger.debug("{0}: Message not addressed to bot: {1}".format(ScriptSettings.BotName, data.Message))
+            return
+        if ScriptSettings.Command and data.GetParam(0) != "!{0}".format(ScriptSettings.Command):
+#            Logger.debug("{0}: Message command not for bot: {1}".format(ScriptSettings.BotName, data.Message))
+            return
+        if Parent.IsOnCooldown(ScriptName, "ChatBot"):
+            Logger.debug("{0}: Chatbot is on cooldown".format(
+                ScriptSettings.BotName))
+            return
+        if Level < ScriptSettings.ChatBotLevel and not Name in ScriptSettings.ChatBotAllowlist.split(", "):
+            Logger.debug("{0}: {1} has not enough permission to chat with bot".format(
+                ScriptSettings.BotName, Name))
+            return
+
+        Message = re.sub(r"^@" + ScriptSettings.BotName, "",
+                         data.Message, flags=re.IGNORECASE).strip()
+        if Message != "":
+            Logger.debug("Send to AI from {0}: '{1}'".format(Name, Message))
+            Bot = OpenAIGetResponse(urllib.quote_plus(Message, ""))
+            if Bot and "choices" in Bot:
+                Parent.SendStreamMessage(
+                    "@{0} {1}".format(Name, Bot["choices"][0]["text"].strip()))
+                Parent.AddCooldown(ScriptName, "ChatBot", ScriptSettings.ChatBotCooldown)
             else:
                 Logger.debug("{0}: No response to message: {1}: {2}".format(
                     ScriptSettings.BotName, Message, json.dumps(Bot, indent=4)))
-        elif Message == "":
-            pass
-        else:
-            Logger.debug("{0}: Message not sent to chatbot: {1}".format(
-                ScriptSettings.BotName, data.Message))
 
 # ---------------------------------------
 #   Chatbot Tick Function
