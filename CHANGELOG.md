@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5 - Lower case
+
+* Let users use mixed case
+
 ## 0.0.4 - Unicode
 
 * Fix encoding and logging

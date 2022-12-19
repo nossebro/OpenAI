@@ -14,7 +14,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.4"
+Version = "0.0.5"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -203,6 +203,9 @@ def ReloadSettings(jsondata):
 
 
 def Execute(data):
+    if data.IsFromDiscord():
+        Logger.debug("Discord: {0}".format(data.Message))
+        Parent.SendDiscordMessage("I received: {0}".format(data.Message))
     if data.IsChatMessage() and data.IsFromTwitch():
         Level = 0
         if Parent.HasPermission(data.User, "caster", ""):
@@ -214,13 +217,13 @@ def Execute(data):
         elif Parent.HasPermission(data.User, "regular", ""):
             Level = 1
         Name = data.UserName
-        if not ScriptSettings.Command and data.GetParam(0) != "@{0}".format(ScriptSettings.BotName):
+        if not ScriptSettings.Command and data.GetParam(0).lower() != "@{0}".format(ScriptSettings.BotName.lower()):
             return
-        if ScriptSettings.Command and data.GetParam(0) != "!{0}".format(ScriptSettings.Command):
+        if ScriptSettings.Command and data.GetParam(0).lower() != "!{0}".format(ScriptSettings.Command.lower()):
             return
         if Parent.IsOnCooldown(ScriptName, "ChatBot"):
-            Logger.debug("{0}: Chatbot is on cooldown".format(
-                ScriptSettings.BotName))
+            Logger.debug("{0}: Chatbot is on cooldown: {1}".format(
+                ScriptSettings.BotName, Parent.GetCooldownDuration(ScriptName, "ChatBot")))
             return
         if Level < ScriptSettings.ChatBotLevel and not Name in ScriptSettings.ChatBotAllowlist.split(", "):
             Logger.debug("{0}: {1} has not enough permission to chat with bot".format(
