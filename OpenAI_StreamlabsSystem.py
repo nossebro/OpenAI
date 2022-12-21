@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---------------------------------------
 #   Import Libraries
 # ---------------------------------------
@@ -14,7 +15,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.5"
+Version = "0.0.6"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -163,6 +164,84 @@ def OpenAIGetModeration(prompt):
     return result
 
 
+def split_text_into_sentences(text):
+    alphabets = "([A-Za-z])"
+    prefixes = "(Mr|St|Mrs|Ms|Dr)[.]"
+    suffixes = "(Inc|Ltd|Jr|Sr|Co)"
+    starters = "(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|However\s|That\s|This\s|Wherever)"
+    acronyms = "([A-Z][.][A-Z][.](?:[A-Z][.])?)"
+    websites = "[.](com|net|org|io|gov)"
+    digits = "([0-9])"
+
+    text = " " + text + "  "
+    text = text.replace("\n", " ")
+    text = re.sub(prefixes, "\\1<prd>", text)
+    text = re.sub(websites, "<prd>\\1", text)
+    text = re.sub(digits + "[.]" + digits, "\\1<prd>\\2", text)
+    if "..." in text:
+        text = text.replace("...", "<prd><prd><prd>")
+    if "Ph.D" in text:
+        text = text.replace("Ph.D.", "Ph<prd>D<prd>")
+    text = re.sub("\s" + alphabets + "[.] ", " \\1<prd> ", text)
+    text = re.sub(acronyms+" "+starters, "\\1<stop> \\2", text)
+    text = re.sub(alphabets + "[.]" + alphabets + "[.]" +
+                  alphabets + "[.]", "\\1<prd>\\2<prd>\\3<prd>", text)
+    text = re.sub(alphabets + "[.]" + alphabets +
+                  "[.]", "\\1<prd>\\2<prd>", text)
+    text = re.sub(" "+suffixes+"[.] "+starters, " \\1<stop> \\2", text)
+    text = re.sub(" "+suffixes+"[.]", " \\1<prd>", text)
+    text = re.sub(" " + alphabets + "[.]", " \\1<prd>", text)
+    if "”" in text:
+        text = text.replace(".”", "”.")
+    if "\"" in text:
+        text = text.replace(".\"", "\".")
+    if "!" in text:
+        text = text.replace("!\"", "\"!")
+    if "?" in text:
+        text = text.replace("?\"", "\"?")
+    text = text.replace(".", ".<stop>")
+    text = text.replace("?", "?<stop>")
+    text = text.replace("!", "!<stop>")
+    text = text.replace("<prd>", ".")
+    sentences = text.split("<stop>")
+    sentences = sentences[:-1]
+    sentences = [s.strip() for s in sentences]
+    return sentences
+
+
+def join_sentences_into_groups(sentences, limit=500, delimiter=' '):
+    """Joins a list of sentences up to a limit.
+
+    :param sentences: List of sentences to group together
+    :param limit: Max length of a group of sentences
+    :param delimiter: string to join sentences with
+    :return: List of string grouped sentences
+    """
+    groups = []
+    group = ''
+    gap = len(delimiter)
+    for i, sentence in enumerate(sentences):
+        if i == 0:
+            group = sentence
+            continue
+        # Combine sentence to group if under limit
+        if len(group) + gap + len(sentence) <= limit:
+            group = group + delimiter + sentence
+        else:
+            groups.append(group)
+            group = sentence
+            # Append the final sentence if not yet appended
+            if i == len(sentences)-1:
+                groups.append(group)
+
+        # Finally, append group of all sentences
+        # if it is below limit and not appended
+        if (i == len(sentences)-1) and (groups == []):
+            groups.append(group)
+
+    return groups
+
+
 # ---------------------------------------
 #   Chatbot Initialize Function
 # ---------------------------------------
@@ -206,7 +285,7 @@ def Execute(data):
     if data.IsFromDiscord():
         Logger.debug("Discord: {0}".format(data.Message))
         Parent.SendDiscordMessage("I received: {0}".format(data.Message))
-    if data.IsChatMessage() and data.IsFromTwitch():
+    if data.IsChatMessage() and data.IsFromTwitch() and data.GetParamCount() > 2:
         Level = 0
         if Parent.HasPermission(data.User, "caster", ""):
             Level = 4
@@ -240,10 +319,14 @@ def Execute(data):
                     Logger.debug("{0}: User {1} send a flagged message: {2}".format(
                         ScriptName.BotName, Name, Message))
                     return
-            Bot = OpenAIGetResponse(Message.decode("unicode-escape"), Name.decode("unicode-escape"))
+            Bot = OpenAIGetResponse(Message.decode(
+                "unicode-escape"), Name.decode("unicode-escape"))
             if Bot and "choices" in Bot:
-                Parent.SendStreamMessage(
-                    "@{0} {1}".format(Name, Bot["choices"][0]["text"].replace("\n", " ").strip()))
+                text = re.sub("(?m)\s+|\n", " ", Bot["choices"][0]["text"])
+                for sentences in join_sentences_into_groups(split_text_into_sentences(text), limit=450 - len(Name)):
+                    Logger.debug("@{0} {1}".format(Name, sentences))
+                    Parent.SendStreamMessage(
+                        "@{0} {1}".format(Name, sentences))
                 Parent.AddCooldown(ScriptName, "ChatBot",
                                    ScriptSettings.ChatBotCooldown)
             else:
