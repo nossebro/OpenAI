@@ -15,7 +15,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.6"
+Version = "0.0.7"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -168,13 +168,14 @@ def split_text_into_sentences(text):
     alphabets = "([A-Za-z])"
     prefixes = "(Mr|St|Mrs|Ms|Dr)[.]"
     suffixes = "(Inc|Ltd|Jr|Sr|Co)"
-    starters = "(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|However\s|That\s|This\s|Wherever)"
+    starters = "(Mr|Mrs|Ms|Dr|He |She |It |They |Their |Our |We |But |However |That |This |Wherever)"
     acronyms = "([A-Z][.][A-Z][.](?:[A-Z][.])?)"
     websites = "[.](com|net|org|io|gov)"
     digits = "([0-9])"
 
+    text = re.sub("\s+", " ", text)
+    text = text.strip()
     text = " " + text + "  "
-    text = text.replace("\n", " ")
     text = re.sub(prefixes, "\\1<prd>", text)
     text = re.sub(websites, "<prd>\\1", text)
     text = re.sub(digits + "[.]" + digits, "\\1<prd>\\2", text)
@@ -182,14 +183,14 @@ def split_text_into_sentences(text):
         text = text.replace("...", "<prd><prd><prd>")
     if "Ph.D" in text:
         text = text.replace("Ph.D.", "Ph<prd>D<prd>")
-    text = re.sub("\s" + alphabets + "[.] ", " \\1<prd> ", text)
-    text = re.sub(acronyms+" "+starters, "\\1<stop> \\2", text)
+    text = re.sub(" " + alphabets + "[.] ", " \\1<prd> ", text)
+    text = re.sub(acronyms + " " + starters, "\\1<stop> \\2", text)
     text = re.sub(alphabets + "[.]" + alphabets + "[.]" +
                   alphabets + "[.]", "\\1<prd>\\2<prd>\\3<prd>", text)
     text = re.sub(alphabets + "[.]" + alphabets +
                   "[.]", "\\1<prd>\\2<prd>", text)
-    text = re.sub(" "+suffixes+"[.] "+starters, " \\1<stop> \\2", text)
-    text = re.sub(" "+suffixes+"[.]", " \\1<prd>", text)
+    text = re.sub(" " + suffixes + "[.] " + starters, " \\1<stop> \\2", text)
+    text = re.sub(" " + suffixes + "[.]", " \\1<prd>", text)
     text = re.sub(" " + alphabets + "[.]", " \\1<prd>", text)
     if "”" in text:
         text = text.replace(".”", "”.")
@@ -204,12 +205,13 @@ def split_text_into_sentences(text):
     text = text.replace("!", "!<stop>")
     text = text.replace("<prd>", ".")
     sentences = text.split("<stop>")
-    sentences = sentences[:-1]
-    sentences = [s.strip() for s in sentences]
+#    sentences = sentences[:-1]
+    sentences = [s.strip() for s in sentences if s.strip() != ""]
+    Logger.debug(sentences)
     return sentences
 
 
-def join_sentences_into_groups(sentences, limit=500, delimiter=' '):
+def join_sentences_into_groups(sentences, limit=500, delimiter=" "):
     """Joins a list of sentences up to a limit.
 
     :param sentences: List of sentences to group together
@@ -218,27 +220,26 @@ def join_sentences_into_groups(sentences, limit=500, delimiter=' '):
     :return: List of string grouped sentences
     """
     groups = []
-    group = ''
-    gap = len(delimiter)
+    group = ""
     for i, sentence in enumerate(sentences):
-        if i == 0:
-            group = sentence
-            continue
-        # Combine sentence to group if under limit
-        if len(group) + gap + len(sentence) <= limit:
-            group = group + delimiter + sentence
+        if len(sentence) > limit:
+            y = []
+            if group:
+                y.extend(group.split())
+                group = ""
+            y.extend(sentence.split())
+            x = join_sentences_into_groups(y, limit=limit, delimiter=delimiter)
+            groups.extend(x[:-1])
+            sentence = x[-1]
+        if len(group + delimiter + sentence) <= limit:
+            if group:
+                group += delimiter
+            group += sentence
         else:
             groups.append(group)
             group = sentence
-            # Append the final sentence if not yet appended
-            if i == len(sentences)-1:
-                groups.append(group)
-
-        # Finally, append group of all sentences
-        # if it is below limit and not appended
-        if (i == len(sentences)-1) and (groups == []):
-            groups.append(group)
-
+    if group:
+        groups.append(group)
     return groups
 
 
@@ -322,8 +323,7 @@ def Execute(data):
             Bot = OpenAIGetResponse(Message.decode(
                 "unicode-escape"), Name.decode("unicode-escape"))
             if Bot and "choices" in Bot:
-                text = re.sub("(?m)\s+|\n", " ", Bot["choices"][0]["text"])
-                for sentences in join_sentences_into_groups(split_text_into_sentences(text), limit=450 - len(Name)):
+                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["text"]), limit=450 - len(Name)):
                     Logger.debug("@{0} {1}".format(Name, sentences))
                     Parent.SendStreamMessage(
                         "@{0} {1}".format(Name, sentences))

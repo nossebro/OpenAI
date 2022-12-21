@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.7 - Long sentences
+
+* Fix an issue with long sentences
+
 ## 0.0.6 - Sentence split
 
 * Split sentences and join but not longer than 450 characters
