@@ -327,7 +327,7 @@ def Execute(data):
             Bot = OpenAIGetResponse(Message.decode(
                 "unicode-escape"), Name.decode("unicode-escape"))
             if Bot and "choices" in Bot and Bot["choices"][0]["finish_reason"] == "stop":
-                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["message"]["content"]), limit=449 - len(Name)):
+                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["message"]["content"]), limit=500 - len(Name)):
                     Logger.debug("@{0} {1}".format(Name, sentences))
                     Parent.SendStreamMessage(
                         "@{0} {1}".format(Name, sentences))

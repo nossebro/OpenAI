@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 - Adjust max length
+
+* Change to 500.
+
 ## 0.1.0 - Change to new endpoint
 
 * Change to the new Chat completion endpoint
