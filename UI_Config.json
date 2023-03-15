@@ -51,7 +51,7 @@
 	},
 	"OpenAIModel": {
 		"type": "textbox",
-		"value": "text-davinci-003",
+		"value": "gpt-3.5-turbo",
 		"label": "Model",
 		"tooltip": "The model which will generate the completion. Some models are suitable for natural language tasks, others specialize in code.",
 		"group": "Open AI"
@@ -59,9 +59,9 @@
 	"OpenAITemperature": {
         "type": "slider",
         "min": 0,
-        "max": 1,
+        "max": 2,
         "ticks": 0.01,
-        "value": 0.70,
+        "value": 1,
 		"label": "Temperature",
 		"tooltip": "Controls randomness: Lowering results in less random completions. As the temperature approaches zero, the model will become deterministic and repetitive.",
 		"group": "Open AI"
@@ -71,7 +71,7 @@
         "min": 1,
         "max": 4000,
         "ticks": 1,
-        "value": 90,
+        "value": 100,
 		"label": "Maximum length",
 		"tooltip": "The maximum number of tokens to generate. Requests can use up to 2048 or 4000 token shared between prompt and completion. The exact limit varies by model. (One token is roughly 4 characters for normal English text)",
 		"group": "Open AI"
@@ -88,8 +88,8 @@
 	},
 	"OpenAIFrequencyPenalty": {
         "type": "slider",
-        "min": 0,
-        "max": 1,
+        "min": -2,
+        "max": 2,
         "ticks": 0.01,
         "value": 0,
 		"label": "Frequency Penalty",
@@ -98,12 +98,19 @@
 	},
 	"OpenAIPresencePenalty": {
         "type": "slider",
-        "min": 0,
-        "max": 1,
+        "min": -2,
+        "max": 2,
         "ticks": 0.01,
         "value": 0,
 		"label": "Presence Penalty",
 		"tooltip": "How much to penalize new tokens based on whether they appear in the text so far. Increases the model's likelihood to talk about new topics.",
+		"group": "Open AI"
+	},
+	"OpenAISystemInit": {
+		"type": "textbox",
+		"value": "You are a Twitch chatbot",
+		"label": "System",
+		"tooltip": "Initial system role content.",
 		"group": "Open AI"
 	}
 }

@@ -15,7 +15,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.0.7"
+Version = "0.1.0"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -141,16 +141,26 @@ def OpenAIGetResponse(prompt, user):
     global ScriptSettings
     Body = {
         "model": ScriptSettings.OpenAIModel,
-        "prompt": prompt,
+        "messages": [
+            {
+                "role": "system",
+                "content": ScriptSettings.OpenAISystemInit
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
         "temperature": ScriptSettings.OpenAITemperature,
-        "max_tokens": int(ScriptSettings.OpenAIMaxToken),
         "top_p": ScriptSettings.OpenAITopP,
+        "n": 1,
+        "max_tokens": int(ScriptSettings.OpenAIMaxToken),
         "frequency_penalty": ScriptSettings.OpenAIFrequencyPenalty,
         "presence_penalty": ScriptSettings.OpenAIPresencePenalty,
         "user": user
     }
     result = OpenAIAPIPostRequest(
-        "https://api.openai.com/v1/completions", body=Body)
+        "https://api.openai.com/v1/chat/completions", body=Body)
     return result
 
 
@@ -314,23 +324,17 @@ def Execute(data):
                          data.Message, flags=re.IGNORECASE).strip()
         if Message != "":
             Logger.debug("Send to AI from {0}: '{1}'".format(Name, Message))
-            Mod = OpenAIGetModeration(Message.decode("unicode-escape"))
-            if Mod and "results" in Mod:
-                if Mod["results"][0]["flagged"]:
-                    Logger.debug("{0}: User {1} send a flagged message: {2}".format(
-                        ScriptName.BotName, Name, Message))
-                    return
             Bot = OpenAIGetResponse(Message.decode(
                 "unicode-escape"), Name.decode("unicode-escape"))
-            if Bot and "choices" in Bot:
-                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["text"]), limit=450 - len(Name)):
+            if Bot and "choices" in Bot and Bot["choices"][0]["finish_reason"] == "stop":
+                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["message"]["content"]), limit=449 - len(Name)):
                     Logger.debug("@{0} {1}".format(Name, sentences))
                     Parent.SendStreamMessage(
                         "@{0} {1}".format(Name, sentences))
                 Parent.AddCooldown(ScriptName, "ChatBot",
                                    ScriptSettings.ChatBotCooldown)
             else:
-                Logger.debug("{0}: No response to message: {1}: {2}".format(
+                Logger.debug("{0}: No complete response to message: {1}: {2}".format(
                     ScriptSettings.BotName, Message, json.dumps(Bot, indent=4)))
 
 # ---------------------------------------

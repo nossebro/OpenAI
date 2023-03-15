@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0 - Change to new endpoint
+
+* Change to the new Chat completion endpoint
+
 ## 0.0.7 - Long sentences
 
 * Fix an issue with long sentences
