@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.1 - Adjust max length
+## 0.1.2 - Fix
 
-* Change to 500.
+* Revert some changes, fix the unicode issues
 
 ## 0.1.0 - Change to new endpoint
 

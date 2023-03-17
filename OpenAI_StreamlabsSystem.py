@@ -15,7 +15,7 @@ import json
 ScriptName = "OpenAI"
 Website = "https://github.com/nossebro/OpenAI"
 Creator = "nossebro"
-Version = "0.1.0"
+Version = "0.1.2"
 Description = "OpenAI chat bot integration"
 
 # ---------------------------------------
@@ -49,15 +49,25 @@ class Settings(object):
         defaults = self.DefaultSettings(UIConfigFile)
         try:
             with codecs.open(settingsfile, encoding="utf-8-sig", mode="r") as f:
-                settings = json.load(f, encoding="utf-8")
-            self.__dict__ = MergeLists(defaults, settings)
-        except:
+                settings = self.JSONLoad(f.read())
+            self.__dict__ = self.MergeLists(defaults, settings)
+        except Exception as e:
+            Parent.Log(ScriptName, e.message)
             self.__dict__ = defaults
+
+    def JSONLoad(self, jsondata):
+        pattern = re.compile(r'\\x(?P<unicode>[0-9a-f]{2})')
+        return json.loads(pattern.sub(r'\\\\u00\g<unicode>', jsondata).encode("utf-8"))
+
+    def MergeLists(self, x=dict(), y=dict()):
+        z = x.copy()
+        z.update(y)
+        return z
 
     def DefaultSettings(self, settingsfile=None):
         defaults = dict()
         with codecs.open(settingsfile, encoding="utf-8-sig", mode="r") as f:
-            ui = json.load(f, encoding="utf-8")
+            ui = self.JSONLoad(f.read())
         for key in ui:
             try:
                 defaults[key] = ui[key]['value']
@@ -68,8 +78,8 @@ class Settings(object):
         return defaults
 
     def Reload(self, jsondata):
-        self.__dict__ = MergeLists(self.DefaultSettings(
-            UIConfigFile), json.loads(jsondata, encoding="utf-8"))
+        self.__dict__ = self.MergeLists(self.DefaultSettings(
+            UIConfigFile), self.JSONLoad(jsondata, encoding="utf-8"))
 
 # ---------------------------------------
 #   Script Functions
@@ -104,16 +114,6 @@ def GetLogger():
 
     log.debug("Logger initialized")
     return log
-
-
-def MergeLists(x=dict(), y=dict()):
-    z = dict()
-    for attr in x:
-        if attr not in y:
-            z[attr] = x[attr]
-        else:
-            z[attr] = y[attr]
-    return z
 
 
 def OpenAIAPIPostRequest(url, header=dict(), body=dict()):
@@ -327,7 +327,7 @@ def Execute(data):
             Bot = OpenAIGetResponse(Message.decode(
                 "unicode-escape"), Name.decode("unicode-escape"))
             if Bot and "choices" in Bot and Bot["choices"][0]["finish_reason"] == "stop":
-                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["message"]["content"]), limit=500 - len(Name)):
+                for sentences in join_sentences_into_groups(split_text_into_sentences(Bot["choices"][0]["message"]["content"]), limit=450 - len(Name)):
                     Logger.debug("@{0} {1}".format(Name, sentences))
                     Parent.SendStreamMessage(
                         "@{0} {1}".format(Name, sentences))
